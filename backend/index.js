@@ -7,14 +7,38 @@ app.use(express.json());
 
 app.post('/chat', (req, res) => {
   const { message } = req.body;
+  console.log(`Received command: ${message}`);
 
-  console.log(`Received message: ${message}`);
+  let responseMessage = "";
 
-  // Simple echo response for now
-  // The frontend expects a stream, but we'll start with a simple response
-  // and refine later.
+  switch (message) {
+    case 'Analyze':
+      responseMessage = "Starting analysis... Please provide more details on what to analyze.";
+      break;
+    case 'Investigate':
+      responseMessage = "Beginning investigation... What are the parameters?";
+      break;
+    case 'Save':
+      responseMessage = "Saving current state... (This feature is not yet implemented).";
+      break;
+    case 'Render':
+      responseMessage = "Initiating rendering process... This may take a moment. (This feature is not yet implemented).";
+      break;
+    case 'Generate':
+      responseMessage = "Generating new component... Please specify the type. (This feature is not yet implemented).";
+      break;
+    case 'CFD Simulator':
+      responseMessage = "Connecting to CFD Simulator... (This feature is not yet implemented). What would you like to simulate?";
+      break;
+    case 'AppHub':
+      responseMessage = "AppHub provides a unified view of your services. You can visit it by searching for 'App Hub' in the Google Cloud Console.";
+      break;
+    default:
+      responseMessage = `Command not recognized: ${message}`;
+  }
+
   res.setHeader('Content-Type', 'text/plain');
-  res.send(`You said: ${message}`);
+  res.send(responseMessage);
 });
 
 const port = process.env.PORT || 8080;

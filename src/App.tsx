@@ -5,6 +5,7 @@ export const AI_PROXY_URL = 'https://hydro-ai-gemini-proxy-20700184149.us-centra
 // --- Part 2: Improved App.tsx Logic (Core Changes) ---
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';
+import Viewer from './Viewer';
 // Note: We remove GoogleGenAI and Chat imports from the client side 
 // for security and move to a standard fetch to the backend proxy.
 
@@ -69,17 +70,6 @@ const App: React.FC = () => {
                 fullResponse += chunk;
             }
             
-            // --- Crucially, handle any function calls once the stream is complete ---
-            // NOTE: This complex logic would ideally be handled by the proxy, which 
-            // would execute the function call and return a new message or output, 
-            // but for a simpler client, you might check the final response text
-            // for special markers or have the proxy handle all conversational logic.
-            // Since we moved AI logic to the proxy, function calling needs a backend implementation.
-            
-            // If function calling must be client-side, the proxy must send back the FunctionCall object 
-            // in the final message of the stream or as metadata, then handleFunctionCalls runs here.
-
- 
 } catch (e: any) {
             console.error("Stream Error:", e);
             setError(`API Proxy Error: ${e.message}`);
@@ -87,31 +77,59 @@ const App: React.FC = () => {
             setChatHistory(prev => prev.filter(msg => msg.id !== currentMessageId)); 
         } finally {
             setIsLoading(false);
-n        }
+        }
+    };
+
+    const sendMessage = (message: string) => {
+      if (!message.trim() || isLoading) return;
+
+      const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: message };
+      setChatHistory((prev) => [...prev, userMessage]);
+      setIsLoading(true);
+      setError(null);
+      sendStreamedMessage(message);
+      setUserInput(''); // Clear input after sending
     };
     
     const handleSendMessage = async (e: FormEvent) => {
         e.preventDefault();
-        if (!userInput.trim() || isLoading) return;
-
-        const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: userInput };
-        setChatHistory((prev) => [...prev, userMessage]);
-        setUserInput('');
-        setIsLoading(true);
-        setError(null);
-        
-        // --- Call the new streaming function ---
-        await sendStreamedMessage(userInput);
-        // ---
+        sendMessage(userInput);
     };
 
-    // ... (rest of the component, including JSX form and buttons) ...
+    const handleButtonClick = (command: string) => {
+      sendMessage(command);
+    };
+
+    useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatHistory]);
+
     return (
-        // ...
         <main className="container mx-auto p-4 md:p-8">
-            {/* ... Dashboard/App rendering ... */}
-            
-            {/* --- Chat Footer (Updated) --- */}
+            <Viewer />
+            <div className="flex flex-wrap items-center gap-2 p-4 bg-gray-700 rounded-lg mb-4">
+              <button onClick={() => handleButtonClick('Analyze')} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Analyze</button>
+              <button onClick={() => handleButtonClick('Investigate')} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Investigate</button>
+              <button onClick={() => handleButtonClick('Save')} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save</button>
+              <button onClick={() => handleButtonClick('Render')} className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Render</button>
+              <button onClick={() => handleButtonClick('Generate')} className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Generate</button>
+              <div className="border-l border-gray-500 h-8 mx-2"></div>
+              <button onClick={() => handleButtonClick('CFD Simulator')} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">CFD Simulator</button>
+              <a href="https://console.cloud.google.com/storage/browser/cfd-simulation-results" target="_blank" rel="noopener noreferrer" className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded inline-block">Simulation Results</a>
+              <button onClick={() => handleButtonClick('AppHub')} className="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">AppHub</button>
+            </div>
+
+            <div className="flex flex-col space-y-4 p-4 bg-gray-900 rounded-lg h-96 overflow-y-auto">
+              {chatHistory.map((message) => (
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`p-3 rounded-lg ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
+                    {message.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
             <form onSubmit={handleSendMessage} className="flex space-x-3 p-4 bg-gray-800 rounded-lg shadow-lg mt-8">
                  <input
                     type="text"
@@ -131,7 +149,6 @@ n        }
                 </button>
             </form>
         </main>
-        // ...
     );
 };
 export default App;
