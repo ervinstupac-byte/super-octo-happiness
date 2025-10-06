@@ -172,13 +172,7 @@ module "github-api-db-secret" {
   secret_data = module.github-api-db.generated_user_password
   depends_on  = [module.project-services-designcenterhydropowerparts, module.project-services-billing-project]
 }
-module "apphub" {
-  source         = "github.com/GoogleCloudPlatform/terraform-google-apphub?ref=v0.3.0"
-  project_id     = var.apphub_project_id
-  location       = var.apphub_location
-  service_uris   = concat(module.github-api-app-global-lb-frontend.apphub_service_uri, module.github-api-app-global-lb-backend.apphub_service_uri, [module.github-api-app-service.apphub_service_uri], [module.cfd-simulation-results.apphub_service_uri], [module.hydro-ai-frontend-service.apphub_service_uri], [module.hydro-ai-static-assets.apphub_service_uri], [module.hydro-ai-gemini-proxy.apphub_service_uri], [module.github-api-db.apphub_service_uri])
-  application_id = var.apphub_application_id
-}
+
 module "project-services-designcenterhydropowerparts" {
   source                      = "github.com/terraform-google-modules/terraform-google-project-factory//modules/project_services?ref=v17.1.0"
   project_id                  = "designcenterhydropowerparts"
@@ -190,4 +184,23 @@ module "project-services-billing-project" {
   project_id                  = "designcenterhydropowerparts"
   disable_services_on_destroy = false
   activate_apis               = ["apphub.googleapis.com", "cloudresourcemanager.googleapis.com"]
+}
+
+module "apphub" {
+  count          = var.enable_apphub_registration ? 1 : 0
+  source         = "github.com/GoogleCloudPlatform/terraform-google-apphub?ref=v0.3.0"
+  project_id     = var.apphub_project_id
+  location       = var.apphub_location
+  service_uris   = concat(module.github-api-app-global-lb-frontend.apphub_service_uri, module.github-api-app-global-lb-backend.apphub_service_uri, [module.github-api-app-service.apphub_service_uri], [module.cfd-simulation-results.apphub_service_uri], [module.hydro-ai-frontend-service.apphub_service_uri], [module.hydro-ai-static-assets.apphub_service_uri], [module.hydro-ai-gemini-proxy.apphub_service_uri], [module.github-api-db.apphub_service_uri])
+  application_id = var.apphub_application_id
+  depends_on = [
+    module.github-api-app-global-lb-frontend,
+    module.github-api-app-global-lb-backend,
+    module.github-api-app-service,
+    module.cfd-simulation-results,
+    module.hydro-ai-frontend-service,
+    module.hydro-ai-static-assets,
+    module.hydro-ai-gemini-proxy,
+    module.github-api-db,
+  ]
 }

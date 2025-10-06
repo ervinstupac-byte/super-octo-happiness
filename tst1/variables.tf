@@ -13,3 +13,9 @@ variable "apphub_application_id" {
   description = "The AppHub application identifier"
   type = string
 }
+
+variable "enable_apphub_registration" {
+  description = "Controls whether the App Hub registration module is enabled."
+  type        = bool
+  default     = false
+}
