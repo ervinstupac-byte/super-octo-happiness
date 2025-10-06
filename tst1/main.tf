@@ -48,7 +48,7 @@ module "cfd-compute-engine" {
   project_id    = "designcenterhydropowerparts"
   region        = "us-central1"
   name_prefix   = "cfd-simulator"
-  machine_type  = "n2d-standard-128"
+  machine_type  = "n2-standard-2"
   network       = "default"
   access_config = [{"nat_ip" = null, "network_tier" = "PREMIUM"}]
   depends_on    = [module.project-services-designcenterhydropowerparts, module.project-services-billing-project]

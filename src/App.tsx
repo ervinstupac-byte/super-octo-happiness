@@ -16,19 +16,14 @@ interface ChatMessage {
 }
 
 const App: React.FC = () => {
-    // Removed: useState<GoogleGenAI | null>(null); and useState<Chat | null>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    // --- NEW: Function to send a message via streaming fetch to our Cloud Run Proxy ---
     const sendStreamedMessage = async (message: string) => {
-        let fullResponse = '';
         const currentMessageId = crypto.randomUUID();
-        
-        // 1. Create a placeholder message to stream into
         setChatHistory(prev => [...prev, { id: currentMessageId, role: 'model', text: '' }]);
 
         try {
@@ -36,7 +31,6 @@ const App: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Assuming the proxy handles auth, but can add auth token here if needed
                 },
                 body: JSON.stringify({ 
                     message: message, 
@@ -56,9 +50,6 @@ const App: React.FC = () => {
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                // Assuming chunk contains one or more message tokens/parts
-                
-                // Append the new chunk to the visible message text
                 setChatHistory(prev => 
                     prev.map(msg => 
                         msg.id === currentMessageId 
@@ -66,14 +57,10 @@ const App: React.FC = () => {
                             : msg
                     )
                 );
-                
-                fullResponse += chunk;
             }
-            
 } catch (e: any) {
             console.error("Stream Error:", e);
             setError(`API Proxy Error: ${e.message}`);
-            // If it fails, remove the empty message placeholder or replace it with an error.
             setChatHistory(prev => prev.filter(msg => msg.id !== currentMessageId)); 
         } finally {
             setIsLoading(false);
@@ -88,7 +75,7 @@ const App: React.FC = () => {
       setIsLoading(true);
       setError(null);
       sendStreamedMessage(message);
-      setUserInput(''); // Clear input after sending
+      setUserInput('');
     };
     
     const handleSendMessage = async (e: FormEvent) => {
