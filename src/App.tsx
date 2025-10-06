@@ -1,6 +1,6 @@
 // --- Part 1: New Constants (e.g., in a separate constants.ts file) ---
 // The URL of your deployed hydro-ai-gemini-proxy Cloud Run Service
-export const AI_PROXY_URL = 'https://hydro-ai-gemini-proxy-SERVICE_HASH.a.run.app/chat'; 
+export const AI_PROXY_URL = 'https://hydro-ai-gemini-proxy-xsldvnsqoq-uc.a.run.app/chat'; 
 
 // --- Part 2: Improved App.tsx Logic (Core Changes) ---
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
