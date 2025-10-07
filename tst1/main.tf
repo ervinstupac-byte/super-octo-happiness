@@ -2,18 +2,21 @@
 # Please make changes to the application template instead.
 
 module "github-api-app-global-lb-frontend" {
-  source        = "github.com/terraform-google-modules/terraform-google-lb-http//modules/frontend?ref=v13.1.0"
-  name          = "github-api-app-global-lb-frontend"
-  project_id    = "designcenterhydropowerparts"
-  url_map_input = module.github-api-app-global-lb-backend.backend_service_info
-  depends_on    = [module.project-services-designcenterhydropowerparts, module.project-services-billing-project]
+  source                          = "github.com/terraform-google-modules/terraform-google-lb-http//modules/frontend?ref=v13.1.0"
+  name                            = "github-api-app-global-lb-frontend"
+  project_id                      = "designcenterhydropowerparts"
+  url_map_input                   = module.github-api-app-global-lb-backend.backend_service_info
+  ssl                             = true
+  managed_ssl_certificate_domains = ["anohubs.com"]
+  https_redirect                  = true
+  depends_on                      = [module.project-services-designcenterhydropowerparts, module.project-services-billing-project]
 }
 module "github-api-app-global-lb-backend" {
   source                  = "github.com/terraform-google-modules/terraform-google-lb-http//modules/backend?ref=v13.1.0"
   name                    = "github-api-app-global-lb-backend"
   project_id              = "designcenterhydropowerparts"
-  serverless_neg_backends = [{"region" = "us-central1", "service_name" = "github-api-app-service", "type" = "cloud-run"}, {"region" = "us-east1", "service_name" = "hydro-ai-frontend-service", "type" = "cloud-run"}]
-  host_path_mappings      = [{"host" = "*", "path" = "/api/*"}, {"host" = "*", "path" = "/*"}]
+  serverless_neg_backends = [{"region" = "us-east1", "service_name" = "hydro-ai-frontend-service", "type" = "cloud-run"}, {"region" = "us-central1", "service_name" = "github-api-app-service", "type" = "cloud-run"}]
+  host_path_mappings      = [{"host" = "*", "path" = "/*"}, {"host" = "*", "path" = "/api/*"}]
   depends_on              = [module.project-services-designcenterhydropowerparts, module.project-services-billing-project]
 }
 module "github-api-app-service" {

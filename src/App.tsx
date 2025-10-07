@@ -1,17 +1,12 @@
-// --- Part 1: New Constants (e.g., in a separate constants.ts file) ---
-// The URL of your deployed hydro-ai-gemini-proxy Cloud Run Service
-export const AI_PROXY_URL = 'https://hydro-ai-gemini-proxy-20700184149.us-central1.run.app/chat'; 
-
-// --- Part 2: Improved App.tsx Logic (Core Changes) ---
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';
 import Viewer from './Viewer';
-// Note: We remove GoogleGenAI and Chat imports from the client side 
-// for security and move to a standard fetch to the backend proxy.
+import SimulationStatus from './SimulationStatus';
+export const AI_PROXY_URL = 'https://hydro-ai-gemini-proxy-xsldvnsqoq-uc.a.run.app/chat';
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'model' | 'diagram_placeholder';
+  role: 'user' | 'model';
   text: string;
 }
 
@@ -21,47 +16,73 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const [modelData, setModelData] = useState(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    const [simulationLog, setSimulationLog] = useState('');
+    const [simulationProgress, setSimulationProgress] = useState(0);
+    const [pressureData, setPressureData] = useState(null);
+    const [stressData, setStressData] = useState(null);
 
     const sendStreamedMessage = async (message: string) => {
         const currentMessageId = crypto.randomUUID();
-        setChatHistory(prev => [...prev, { id: currentMessageId, role: 'model', text: '' }]);
+        
+        if (message === 'CFD Simulator' || message === 'Analyze') {
+            setIsSimulating(true);
+            setSimulationLog('');
+            setSimulationProgress(0);
+            setPressureData(null);
+            setStressData(null);
+        }
 
         try {
             const response = await fetch(AI_PROXY_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    message: message, 
-                    history: chatHistory.filter(m => m.role !== 'diagram_placeholder') 
-                }), 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message }),
             });
 
             if (!response.ok || !response.body) {
                 throw new Error(`Proxy error: ${response.statusText}`);
             }
 
+            setChatHistory(prev => [...prev, { id: currentMessageId, role: 'model', text: '' }]);
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
+            let buffer = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            const processStream = async () => {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
 
-                const chunk = decoder.decode(value, { stream: true });
-                setChatHistory(prev => 
-                    prev.map(msg => 
-                        msg.id === currentMessageId 
-                            ? { ...msg, text: msg.text + chunk } 
-                            : msg
-                    )
-                );
+                    if (message === 'CFD Simulator' || message === 'Analyze') {
+                        setSimulationLog(prev => prev + chunk);
+                        const progressMatch = chunk.match(/\[PROGRESS:(\d+)\]/);
+                        if (progressMatch) {
+                            setSimulationProgress(parseInt(progressMatch[1], 10));
+                        }
+                    } else {
+                         setChatHistory(prev => prev.map(msg => msg.id === currentMessageId ? { ...msg, text: msg.text + chunk } : msg));
+                    }
+                }
+
+                try {
+                    const jsonData = JSON.parse(buffer.substring(buffer.indexOf('{')));
+                    if (jsonData.stressData) {
+                        setStressData(jsonData.stressData);
+                    }
+                } catch (e) {
+                    // Not a JSON response at the end, which is fine for some commands
+                }
+                setIsSimulating(false);
             }
-} catch (e: any) {
+            processStream();
+
+        } catch (e: any) {
             console.error("Stream Error:", e);
             setError(`API Proxy Error: ${e.message}`);
-            setChatHistory(prev => prev.filter(msg => msg.id !== currentMessageId)); 
         } finally {
             setIsLoading(false);
         }
@@ -69,7 +90,6 @@ const App: React.FC = () => {
 
     const sendMessage = (message: string) => {
       if (!message.trim() || isLoading) return;
-
       const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: message };
       setChatHistory((prev) => [...prev, userMessage]);
       setIsLoading(true);
@@ -78,7 +98,7 @@ const App: React.FC = () => {
       setUserInput('');
     };
     
-    const handleSendMessage = async (e: FormEvent) => {
+    const handleSendMessage = (e: FormEvent) => {
         e.preventDefault();
         sendMessage(userInput);
     };
@@ -87,13 +107,22 @@ const App: React.FC = () => {
       sendMessage(command);
     };
 
+    const handleExportChat = () => {
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(chatHistory, null, 2))}`;
+      const link = document.createElement("a");
+      link.href = jsonString;
+      link.download = "chat-history.json";
+      link.click();
+    };
+
     useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
 
     return (
         <main className="container mx-auto p-4 md:p-8">
-            <Viewer />
+            <h1 className="text-4xl font-bold text-white text-center mb-4">anohubs.com</h1>
+            <Viewer data={modelData} pressureData={pressureData} stressData={stressData} />
             <div className="flex flex-wrap items-center gap-2 p-4 bg-gray-700 rounded-lg mb-4">
               <button onClick={() => handleButtonClick('Analyze')} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Analyze</button>
               <button onClick={() => handleButtonClick('Investigate')} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Investigate</button>
@@ -104,7 +133,10 @@ const App: React.FC = () => {
               <button onClick={() => handleButtonClick('CFD Simulator')} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">CFD Simulator</button>
               <a href="https://console.cloud.google.com/storage/browser/cfd-simulation-results" target="_blank" rel="noopener noreferrer" className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded inline-block">Simulation Results</a>
               <button onClick={() => handleButtonClick('AppHub')} className="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">AppHub</button>
+              <button onClick={handleExportChat} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Export Chat</button>
             </div>
+
+            {isSimulating && <SimulationStatus log={simulationLog} progress={simulationProgress} />}
 
             <div className="flex flex-col space-y-4 p-4 bg-gray-900 rounded-lg h-96 overflow-y-auto">
               {chatHistory.map((message) => (

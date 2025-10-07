@@ -1,53 +1,44 @@
 const express = require('express');
 const cors = require('cors');
+const {VertexAI} = require('@google-cloud/aiplatform');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const fs = require('fs');
-const path = require('path');
+// Initialize Vertex with your Cloud project and location
+const vertex_ai = new VertexAI({project: process.env.GOOGLE_CLOUD_PROJECT, location: 'us-central1'});
+const model = 'gemini-1.0-pro-001';
 
-app.post('/chat', (req, res) => {
+// Instantiate the model
+const generativeModel = vertex_ai.getGenerativeModel({
+  model: model,
+});
+
+app.post('/chat', async (req, res) => {
   const { message } = req.body;
-  console.log(`Received command: ${message}`);
+  console.log('Received message for Gemini proxy:', message);
 
-  if (message === 'Render') {
-    const gltfPath = path.join(__dirname, 'turbine.gltf');
-    fs.readFile(gltfPath, 'utf8', (err, data) => {
-      if (err) {
-        console.error("Error reading glTF file:", err);
-        res.status(500).send({ error: 'Could not load model' });
-        return;
-      }
-      res.json(JSON.parse(data));
+  res.setHeader('Content-Type', 'text/plain');
+
+  try {
+    const stream = await generativeModel.generateContentStream({
+      contents: [{role: 'user', parts: [{text: message}]}],
     });
-  } else {
-    let responseMessage = "";
-    switch (message) {
-      case 'Analyze':
-        responseMessage = "Starting analysis... Please provide more details on what to analyze.";
-        break;
-      case 'Investigate':
-        responseMessage = "Beginning investigation... What are the parameters?";
-        break;
-      case 'Save':
-        responseMessage = "Saving current state... (This feature is not yet implemented).";
-        break;
-      case 'Generate':
-        responseMessage = "Generating new component... Please specify the type. (This feature is not yet implemented).";
-        break;
-      case 'CFD Simulator':
-        responseMessage = "Connecting to CFD Simulator... (This feature is not yet implemented). What would you like to simulate?";
-        break;
-      case 'AppHub':
-        responseMessage = "AppHub provides a unified view of your services. You can visit it by searching for 'App Hub' in the Google Cloud Console.";
-        break;
-      default:
-        responseMessage = `Command not recognized: ${message}`;
+
+    for await (const item of stream.stream) {
+      if (item.candidates && item.candidates[0].content && item.candidates[0].content.parts) {
+        const part = item.candidates[0].content.parts[0];
+        if (part.text) {
+          res.write(part.text);
+        }
+      }
     }
-    res.setHeader('Content-Type', 'text/plain');
-    res.send(responseMessage);
+  } catch (error) {
+    console.error('Error calling Vertex AI:', error);
+    res.status(500).send('Error communicating with the AI service.');
+  } finally {
+    res.end();
   }
 });
 
