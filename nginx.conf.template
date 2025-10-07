@@ -2,6 +2,11 @@ server {
   listen ${PORT};
   server_name localhost;
 
+  location /healthz {
+    return 200 "ok";
+    add_header Content-Type text/plain;
+  }
+
   location / {
     root   /usr/share/nginx/html;
     index  index.html index.htm;
