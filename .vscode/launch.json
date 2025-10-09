@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Deploy Cloud Function (Node)",
+      "type": "node",
+      "request": "launch",
+      "functionName": "designcenterhydro",
+      "gen": "GEN_2",
+      "revision": "",
+      "entryPoint": "designcenterhydro",
+      "testInput": "designcenterhydro"
+    },
+    {
+      "name": "Deploy Cloud Function (Node) - alt",
+      "type": "node",
+      "request": "launch",
+      "functionName": "designcenterhydro",
+      "gen": "GEN_2",
+      "revision": "",
+      "entryPoint": "designcenterhydro",
+      "testInput": "designcenterhydro"
+    }
+  ]
+}
